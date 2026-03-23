@@ -18,7 +18,7 @@ struct ContentView: View {
                 mainLayout
             }
         }
-        .frame(width: 368, height: 612)
+        .frame(width: 368, height: 560)
         .onAppear {
             if !username.isEmpty {
                 Task { await service.fetchStats(username: username) }
@@ -56,7 +56,7 @@ struct ContentView: View {
     }
 
     private var mainLayout: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "person.crop.circle")
@@ -88,44 +88,58 @@ struct ContentView: View {
                 }
             }
 
-            if !service.userStats.isEmpty {
-                StatsMenuCard(
-                    providerName: "LeetCode",
-                    accountLabel: username.isEmpty ? "profile" : "@\(username)",
-                    subtitle: "\(allSolved) of \(allTotal) solved",
-                    allSolved: allSolved,
-                    allTotal: allTotal,
-                    currentStreak: service.currentStreak,
-                    longestStreak: service.longestStreak,
-                    metrics: metricRows,
-                    hoveredMetricID: $hoveredDifficultyID
-                )
-                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
-            } else if !service.isLoading {
-                ContentUnavailableView(
-                    "No Stats Yet",
-                    systemImage: "chart.bar.xaxis",
-                    description: Text("Enter your username above to load your solved counts and streaks.")
-                )
-                .panelSurface(cornerRadius: 18)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .transition(.opacity)
-            } else {
-                VStack {
-                    Spacer()
-                    ProgressView("Fetching stats…")
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .transition(.opacity)
-            }
+            Group {
+                if !service.userStats.isEmpty {
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            StatsMenuCard(
+                                providerName: "LeetCode",
+                                accountLabel: username.isEmpty ? "profile" : "@\(username)",
+                                subtitle: "\(allSolved) of \(allTotal) solved",
+                                allSolved: allSolved,
+                                allTotal: allTotal,
+                                currentStreak: service.currentStreak,
+                                longestStreak: service.longestStreak,
+                                metrics: metricRows,
+                                hoveredMetricID: $hoveredDifficultyID
+                            )
 
-            Spacer(minLength: 0)
+                            InsightsPanel(
+                                allSolved: allSolved,
+                                allTotal: allTotal,
+                                metrics: metricRows
+                            )
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .scrollIndicators(.hidden)
+                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+                } else if !service.isLoading {
+                    ContentUnavailableView(
+                        "No Stats Yet",
+                        systemImage: "chart.bar.xaxis",
+                        description: Text("Enter your username above to load your solved counts and streaks.")
+                    )
+                    .panelSurface(cornerRadius: 18)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity)
+                } else {
+                    VStack {
+                        Spacer()
+                        ProgressView("Fetching stats…")
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             HStack {
                 Spacer()
                 quitButton
             }
+            .padding(.top, 2)
         }
         .padding(18)
         .opacity(statsVisible ? 1 : 0)
@@ -288,6 +302,84 @@ private struct LeetMetricRow: View {
             onHoverChange(hovering)
         }
 #endif
+    }
+}
+
+private struct InsightsPanel: View {
+    let allSolved: Int
+    let allTotal: Int
+    let metrics: [LeetMetric]
+
+    private var completionPercent: Int {
+        guard allTotal > 0 else { return 0 }
+        return Int((Double(allSolved) / Double(allTotal) * 100).rounded())
+    }
+
+    private var remainingCount: Int {
+        max(allTotal - allSolved, 0)
+    }
+
+    private var easyMediumSolved: Int {
+        metrics
+            .filter { $0.id == "easy" || $0.id == "medium" }
+            .reduce(0) { $0 + $1.solved }
+    }
+
+    private var bestSegment: LeetMetric {
+        metrics.max(by: { $0.percentage < $1.percentage }) ?? LeetMetric(
+            id: "all",
+            title: "Overall",
+            solved: allSolved,
+            total: allTotal,
+            tint: .accentColor
+        )
+    }
+
+    var body: some View {
+        let tiles: [(String, String, String)] = [
+            ("chart.pie", "Completion", "\(completionPercent)%"),
+            ("tray.full", "Remaining", "\(remainingCount)"),
+            ("bolt", "Easy + Medium", "\(easyMediumSolved)"),
+            ("scope", "Best Segment", bestSegment.title),
+        ]
+
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+            ForEach(tiles, id: \.1) { icon, label, value in
+                InsightTile(icon: icon, label: label, value: value)
+            }
+        }
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
+    }
+}
+
+private struct InsightTile: View {
+    let icon: String
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label(label, systemImage: icon)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+        )
     }
 }
 
