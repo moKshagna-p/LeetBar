@@ -241,10 +241,11 @@ private struct StatsMenuCard: View {
 
             LeetDifficultyGaugeView(
                 metric: selectedMetric,
+                metrics: metrics,
                 currentStreak: currentStreak,
                 longestStreak: longestStreak
             )
-            .frame(height: 170)
+            .frame(height: 158)
 
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(metrics) { metric in
@@ -385,24 +386,23 @@ private struct InsightTile: View {
 
 private struct LeetDifficultyGaugeView: View {
     let metric: LeetMetric
+    let metrics: [LeetMetric]
     let currentStreak: Int
     let longestStreak: Int
 
     var body: some View {
         VStack(spacing: 10) {
-            Gauge(value: metric.percentage) {
-                Text(metric.title)
-            } currentValueLabel: {
+            ZStack {
+                SegmentedDifficultyRing(metrics: metrics, highlightedID: metric.id)
+                    .frame(width: 126, height: 126)
+
                 Text("\(metric.solved)")
-                    .font(.title.bold())
+                    .font(.system(size: 42, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                    .frame(minWidth: 76, alignment: .center)
+                    .frame(minWidth: 96, alignment: .center)
                     .contentTransition(.numericText())
             }
-            .gaugeStyle(.accessoryCircularCapacity)
-            .tint(metric.tint)
-            .scaleEffect(1.4)
-            .padding(.bottom, 8)
+            .padding(.bottom, 6)
             .animation(.spring(response: 0.4, dampingFraction: 0.82), value: metric.id)
             .animation(.spring(response: 0.4, dampingFraction: 0.82), value: metric.solved)
 
@@ -437,6 +437,54 @@ private struct LeetDifficultyGaugeView: View {
             .animation(.easeInOut(duration: 0.16), value: metric.id)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct SegmentedDifficultyRing: View {
+    let metrics: [LeetMetric]
+    let highlightedID: String
+
+    private let orderedIDs = ["easy", "medium", "hard"]
+    private let segmentGap: CGFloat = 0.035
+    private let trackLineWidth: CGFloat = 8
+    private let progressLineWidth: CGFloat = 5
+
+    private func metric(for id: String) -> LeetMetric {
+        metrics.first(where: { $0.id == id }) ?? LeetMetric(id: id, title: id.capitalized, solved: 0, total: 1, tint: .secondary)
+    }
+
+    var body: some View {
+        let available: CGFloat = 1 - (segmentGap * 3)
+        let segmentLength: CGFloat = available / 3
+
+        ZStack {
+            ForEach(Array(orderedIDs.enumerated()), id: \.offset) { index, id in
+                let difficulty = metric(for: id)
+                let start = CGFloat(index) * (segmentLength + segmentGap)
+                let end = start + segmentLength
+                let progressEnd = start + (segmentLength * max(0, min(difficulty.percentage, 1)))
+                let isHighlighted = highlightedID == id || highlightedID == "all"
+
+                Circle()
+                    .trim(from: start, to: end)
+                    .stroke(
+                        difficulty.tint.opacity(isHighlighted ? 0.24 : 0.13),
+                        style: StrokeStyle(lineWidth: trackLineWidth, lineCap: .round)
+                    )
+
+                if progressEnd > start + 0.0001 {
+                    Circle()
+                        .trim(from: start, to: progressEnd)
+                        .stroke(
+                            difficulty.tint,
+                            style: StrokeStyle(lineWidth: progressLineWidth, lineCap: .round)
+                        )
+                }
+            }
+        }
+        .rotationEffect(.degrees(-90))
+        .animation(.spring(response: 0.38, dampingFraction: 0.84), value: metrics.map(\.percentage))
+        .animation(.easeInOut(duration: 0.18), value: highlightedID)
     }
 }
 
