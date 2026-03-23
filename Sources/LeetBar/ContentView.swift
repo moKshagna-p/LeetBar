@@ -145,37 +145,47 @@ struct ContentView: View {
 
     private var backgroundView: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.12, green: 0.13, blue: 0.14),
-                    Color(red: 0.16, green: 0.17, blue: 0.18),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            // Native-like translucent base, similar to menubar popovers.
+            Rectangle()
+                .fill(.regularMaterial.opacity(0.88))
 
             Group {
                 Circle()
-                    .fill(Color(red: 0.40, green: 0.36, blue: 0.30).opacity(0.22))
+                    .fill(Color(nsColor: .systemBlue).opacity(0.12))
                     .frame(width: 260, height: 260)
-                    .offset(x: animate ? 80 : -90, y: animate ? -120 : 120)
+                    .offset(x: animate ? 90 : -80, y: animate ? -130 : 110)
 
                 Circle()
-                    .fill(Color(red: 0.30, green: 0.33, blue: 0.36).opacity(0.2))
-                    .frame(width: 300, height: 300)
-                    .offset(x: animate ? -100 : 110, y: animate ? 100 : -110)
+                    .fill(Color(nsColor: .systemIndigo).opacity(0.1))
+                    .frame(width: 320, height: 320)
+                    .offset(x: animate ? -110 : 120, y: animate ? 110 : -100)
 
                 Circle()
-                    .fill(Color(red: 0.24, green: 0.28, blue: 0.25).opacity(0.16))
-                    .frame(width: 210, height: 210)
-                    .offset(x: animate ? 40 : -45, y: animate ? 40 : -45)
+                    .fill(Color(nsColor: .systemTeal).opacity(0.08))
+                    .frame(width: 200, height: 200)
+                    .offset(x: animate ? 45 : -40, y: animate ? 35 : -40)
             }
-            .blur(radius: 60)
-            .animation(.easeInOut(duration: 10).repeatForever(autoreverses: true), value: animate)
+            .blur(radius: 72)
+            .animation(.easeInOut(duration: 14).repeatForever(autoreverses: true), value: animate)
 
             Rectangle()
-                .fill(.thinMaterial.opacity(0.72))
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.08),
+                            .clear,
+                            .black.opacity(0.1),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(.white.opacity(0.12), lineWidth: 1)
+                .padding(1)
+        )
     }
 
     private var refreshButton: some View {
@@ -484,11 +494,11 @@ private extension View {
             }
         } else {
             self
-                .background(.ultraThinMaterial)
+                .background(.regularMaterial.opacity(0.78))
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(.white.opacity(0.1), lineWidth: 1)
+                        .stroke(.white.opacity(0.14), lineWidth: 1)
                 )
         }
     }
