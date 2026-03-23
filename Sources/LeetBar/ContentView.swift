@@ -6,6 +6,7 @@ struct ContentView: View {
     @FocusState private var isFocused: Bool
 
     @State private var animate = false
+    @State private var hoveredDifficultyID: String?
 
     var body: some View {
         Group {
@@ -17,7 +18,7 @@ struct ContentView: View {
                 mainLayout
             }
         }
-        .frame(width: 320, height: 480)
+        .frame(width: 420, height: 660)
         .background(backgroundView)
         .onAppear {
             animate = true
@@ -55,7 +56,7 @@ struct ContentView: View {
 
     private var mainLayout: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 12) {
+            VStack(spacing: 14) {
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 14, weight: .bold))
@@ -86,19 +87,27 @@ struct ContentView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
-            .padding([.horizontal, .top], 20)
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
 
             if !service.userStats.isEmpty {
-                ScrollView {
-                    VStack(spacing: 14) {
-                        StatsMenuCard(
-                            providerName: "LeetCode",
-                            accountLabel: username.isEmpty ? "profile" : "@\(username)",
-                            subtitle: "\(allSolved)/\(allTotal) solved",
-                            metrics: metricRows)
-                        .padding(.top, 8)
-                    }
-                    .padding(20)
+                VStack(spacing: 0) {
+                    StatsMenuCard(
+                        providerName: "LeetCode",
+                        accountLabel: username.isEmpty ? "profile" : "@\(username)",
+                        subtitle: "\(allSolved)/\(allTotal) solved",
+                        allSolved: allSolved,
+                        allTotal: allTotal,
+                        currentStreak: service.currentStreak,
+                        longestStreak: service.longestStreak,
+                        metrics: metricRows,
+                        hoveredMetricID: $hoveredDifficultyID
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.top, 12)
+                    .padding(.bottom, 10)
+
+                    Spacer(minLength: 0)
                 }
             } else if !service.isLoading {
                 VStack(spacing: 12) {
@@ -128,36 +137,44 @@ struct ContentView: View {
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.secondary.opacity(0.5))
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .padding(.bottom, 20)
         }
     }
 
     private var backgroundView: some View {
         ZStack {
-            Color(NSColor.windowBackgroundColor).opacity(0.8)
+            LinearGradient(
+                colors: [
+                    Color(red: 0.12, green: 0.13, blue: 0.14),
+                    Color(red: 0.16, green: 0.17, blue: 0.18),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
 
             Group {
                 Circle()
-                    .fill(Color.blue.opacity(0.3))
-                    .frame(width: 250, height: 250)
-                    .offset(x: animate ? 100 : -100, y: animate ? -150 : 150)
+                    .fill(Color(red: 0.40, green: 0.36, blue: 0.30).opacity(0.22))
+                    .frame(width: 260, height: 260)
+                    .offset(x: animate ? 80 : -90, y: animate ? -120 : 120)
 
                 Circle()
-                    .fill(Color.purple.opacity(0.2))
+                    .fill(Color(red: 0.30, green: 0.33, blue: 0.36).opacity(0.2))
                     .frame(width: 300, height: 300)
-                    .offset(x: animate ? -120 : 120, y: animate ? 120 : -120)
+                    .offset(x: animate ? -100 : 110, y: animate ? 100 : -110)
 
                 Circle()
-                    .fill(Color.orange.opacity(0.15))
-                    .frame(width: 200, height: 200)
-                    .offset(x: animate ? 50 : -50, y: animate ? 50 : -50)
+                    .fill(Color(red: 0.24, green: 0.28, blue: 0.25).opacity(0.16))
+                    .frame(width: 210, height: 210)
+                    .offset(x: animate ? 40 : -45, y: animate ? 40 : -45)
             }
             .blur(radius: 60)
             .animation(.easeInOut(duration: 10).repeatForever(autoreverses: true), value: animate)
 
             Rectangle()
-                .fill(.ultraThinMaterial)
+                .fill(.thinMaterial.opacity(0.72))
         }
     }
 
@@ -227,10 +244,26 @@ private struct StatsMenuCard: View {
     let providerName: String
     let accountLabel: String
     let subtitle: String
+    let allSolved: Int
+    let allTotal: Int
+    let currentStreak: Int
+    let longestStreak: Int
     let metrics: [LeetMetric]
+    @Binding var hoveredMetricID: String?
+
+    private var totalMetric: LeetMetric {
+        LeetMetric(id: "all", title: "All", solved: allSolved, total: allTotal, tint: Color(red: 0.20, green: 0.78, blue: 0.86))
+    }
+
+    private var selectedMetric: LeetMetric {
+        if let hoveredMetricID, let hovered = metrics.first(where: { $0.id == hoveredMetricID }) {
+            return hovered
+        }
+        return totalMetric
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
                 Text(providerName)
                     .font(.headline)
@@ -247,23 +280,42 @@ private struct StatsMenuCard: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 12) {
+            LeetDifficultyGaugeView(
+                metric: selectedMetric,
+                allSolved: allSolved,
+                allTotal: allTotal,
+                currentStreak: currentStreak,
+                longestStreak: longestStreak
+            )
+            .frame(height: 220)
+
+            VStack(alignment: .leading, spacing: 10) {
                 ForEach(metrics) { metric in
-                    LeetMetricRow(metric: metric)
+                    LeetMetricRow(
+                        metric: metric,
+                        isActive: metric.id == hoveredMetricID,
+                        onHoverChange: { hovering in
+                            withAnimation(.interactiveSpring(response: 0.45, dampingFraction: 0.86, blendDuration: 0.12)) {
+                                hoveredMetricID = hovering ? metric.id : nil
+                            }
+                        }
+                    )
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
         .panelSurface(cornerRadius: 18)
     }
 }
 
 private struct LeetMetricRow: View {
     let metric: LeetMetric
+    let isActive: Bool
+    let onHoverChange: (Bool) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(metric.title)
                     .font(.subheadline)
@@ -281,6 +333,123 @@ private struct LeetMetricRow: View {
 
             CompactProgressBar(progress: metric.percentage, tint: metric.tint)
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(isActive ? .white.opacity(0.07) : .clear)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+#if os(macOS)
+        .onHover { hovering in
+            onHoverChange(hovering)
+        }
+#endif
+    }
+}
+
+private struct LeetDifficultyGaugeView: View {
+    let metric: LeetMetric
+    let allSolved: Int
+    let allTotal: Int
+    let currentStreak: Int
+    let longestStreak: Int
+
+    private let startAngle = Angle.degrees(142)
+    private let sweepAngle = 258.0
+
+    var body: some View {
+        GeometryReader { proxy in
+            let side = min(proxy.size.width, proxy.size.height)
+            let lineWidth: CGFloat = 10
+            let radius = side * 0.5 - lineWidth
+            let center = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
+            let endAngle = Angle.degrees(startAngle.degrees + (sweepAngle * metric.percentage))
+
+            ZStack {
+                GaugeArcShape(startAngle: startAngle, endAngle: .degrees(startAngle.degrees + sweepAngle))
+                    .stroke(.white.opacity(0.16), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+
+                GaugeArcShape(startAngle: startAngle, endAngle: endAngle)
+                    .stroke(metric.tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .shadow(color: metric.tint.opacity(0.25), radius: 5, x: 0, y: 1)
+                    .animation(.interactiveSpring(response: 0.48, dampingFraction: 0.84, blendDuration: 0.2), value: metric.percentage)
+                    .animation(.easeInOut(duration: 0.22), value: metric.id)
+
+                Circle()
+                    .fill(.white.opacity(0.35))
+                    .frame(width: 8, height: 8)
+                    .position(point(center: center, radius: radius, angle: startAngle))
+
+                Circle()
+                    .fill(metric.tint)
+                    .frame(width: 10, height: 10)
+                    .shadow(color: metric.tint.opacity(0.5), radius: 4, x: 0, y: 0)
+                    .position(point(center: center, radius: radius, angle: endAngle))
+                    .animation(.interactiveSpring(response: 0.48, dampingFraction: 0.84, blendDuration: 0.2), value: metric.percentage)
+
+                VStack(spacing: 3) {
+                    Text(metric.title)
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.96))
+                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        Text("\(metric.solved)")
+                            .font(.system(size: 56, weight: .bold, design: .rounded))
+                            .contentTransition(.numericText())
+                        Text("/\(metric.total)")
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    Text("Solved")
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+                .animation(.interactiveSpring(response: 0.45, dampingFraction: 0.86), value: metric.id)
+            }
+
+            VStack {
+                Spacer()
+                HStack(spacing: 20) {
+                    Label("\(currentStreak)d current", systemImage: "flame.fill")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.orange.opacity(0.95))
+                    Label("\(longestStreak)d best", systemImage: "trophy.fill")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.yellow.opacity(0.95))
+                }
+                .padding(.bottom, 4)
+            }
+        }
+    }
+
+    private func point(center: CGPoint, radius: CGFloat, angle: Angle) -> CGPoint {
+        let radians = CGFloat(angle.radians)
+        return CGPoint(
+            x: center.x + CoreGraphics.cos(radians) * radius,
+            y: center.y + CoreGraphics.sin(radians) * radius
+        )
+    }
+}
+
+private struct GaugeArcShape: Shape {
+    let startAngle: Angle
+    let endAngle: Angle
+
+    func path(in rect: CGRect) -> Path {
+        let inset: CGFloat = 10
+        let arcRect = rect.insetBy(dx: inset, dy: inset)
+        let center = CGPoint(x: arcRect.midX, y: arcRect.midY)
+        let radius = min(arcRect.width, arcRect.height) / 2
+
+        var path = Path()
+        path.addArc(
+            center: center,
+            radius: radius,
+            startAngle: startAngle,
+            endAngle: endAngle,
+            clockwise: false
+        )
+        return path
     }
 }
 
@@ -297,6 +466,7 @@ private struct CompactProgressBar: View {
                 Capsule()
                     .fill(tint)
                     .frame(width: width)
+                    .animation(.easeInOut(duration: 0.22), value: progress)
             }
         }
         .frame(height: 7)

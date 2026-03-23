@@ -32,3 +32,19 @@ struct SubmissionNum: Codable, Hashable {
     let difficulty: String
     let count: Int
 }
+
+struct LeetCodeCalendarResponse: Codable {
+    let data: LeetCodeCalendarData?
+}
+
+struct LeetCodeCalendarData: Codable {
+    let matchedUser: CalendarMatchedUser?
+}
+
+struct CalendarMatchedUser: Codable {
+    let userCalendar: UserCalendar?
+}
+
+struct UserCalendar: Codable {
+    let submissionCalendar: String?
+}
