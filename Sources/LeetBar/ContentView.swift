@@ -5,27 +5,28 @@ struct ContentView: View {
     @AppStorage("username") private var username: String = ""
     @FocusState private var isFocused: Bool
 
-    @State private var animate = false
     @State private var hoveredDifficultyID: String?
+    @State private var statsVisible = false
 
     var body: some View {
         Group {
             if #available(macOS 26, iOS 26, *) {
-                GlassEffectContainer(spacing: 20) {
+                GlassEffectContainer(spacing: 16) {
                     mainLayout
                 }
             } else {
                 mainLayout
             }
         }
-        .frame(width: 420, height: 660)
-        .background(backgroundView)
+        .frame(width: 368, height: 612)
         .onAppear {
-            animate = true
             if !username.isEmpty {
                 Task { await service.fetchStats(username: username) }
             } else {
                 isFocused = true
+            }
+            withAnimation(.easeOut(duration: 0.35)) {
+                statsVisible = true
             }
         }
     }
@@ -55,137 +56,83 @@ struct ContentView: View {
     }
 
     private var mainLayout: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 14) {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14, weight: .bold))
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "person.crop.circle")
                         .foregroundStyle(.secondary)
 
-                    TextField("Username", text: $username)
+                    TextField("LeetCode username", text: $username)
                         .textFieldStyle(.plain)
                         .focused($isFocused)
-                        .font(.system(.body, design: .rounded))
                         .onSubmit {
                             Task { await service.fetchStats(username: username) }
                         }
 
                     if service.isLoading {
-                        ProgressView().scaleEffect(0.5)
+                        ProgressView()
+                            .controlSize(.small)
                     } else {
                         refreshButton
                     }
                 }
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .panelSurface(cornerRadius: 14, interactive: true)
 
                 if let error = service.errorMessage {
                     Text(error)
-                        .font(.caption2)
-                        .foregroundStyle(.red.opacity(0.8))
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .transition(.opacity)
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
 
             if !service.userStats.isEmpty {
-                VStack(spacing: 0) {
-                    StatsMenuCard(
-                        providerName: "LeetCode",
-                        accountLabel: username.isEmpty ? "profile" : "@\(username)",
-                        subtitle: "\(allSolved)/\(allTotal) solved",
-                        allSolved: allSolved,
-                        allTotal: allTotal,
-                        currentStreak: service.currentStreak,
-                        longestStreak: service.longestStreak,
-                        metrics: metricRows,
-                        hoveredMetricID: $hoveredDifficultyID
-                    )
-                    .padding(.horizontal, 24)
-                    .padding(.top, 12)
-                    .padding(.bottom, 10)
-
-                    Spacer(minLength: 0)
-                }
+                StatsMenuCard(
+                    providerName: "LeetCode",
+                    accountLabel: username.isEmpty ? "profile" : "@\(username)",
+                    subtitle: "\(allSolved) of \(allTotal) solved",
+                    allSolved: allSolved,
+                    allTotal: allTotal,
+                    currentStreak: service.currentStreak,
+                    longestStreak: service.longestStreak,
+                    metrics: metricRows,
+                    hoveredMetricID: $hoveredDifficultyID
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
             } else if !service.isLoading {
-                VStack(spacing: 12) {
+                ContentUnavailableView(
+                    "No Stats Yet",
+                    systemImage: "chart.bar.xaxis",
+                    description: Text("Enter your username above to load your solved counts and streaks.")
+                )
+                .panelSurface(cornerRadius: 18)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity)
+            } else {
+                VStack {
                     Spacer()
-                    Image(systemName: "terminal.fill")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.secondary.opacity(0.3))
-                    Text("Ready to Track Progress?")
-                        .font(.system(.headline, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    Text("Enter your LeetCode username above")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.secondary.opacity(0.7))
+                    ProgressView("Fetching stats…")
                     Spacer()
                 }
-                .frame(maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity)
             }
 
-            Divider().opacity(0.1)
+            Spacer(minLength: 0)
 
             HStack {
-                quitButton
-
                 Spacer()
-
-                Text("LeetBar v1.1")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.secondary.opacity(0.5))
+                quitButton
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 12)
-            .padding(.bottom, 20)
         }
-    }
-
-    private var backgroundView: some View {
-        ZStack {
-            // Native-like translucent base, similar to menubar popovers.
-            Rectangle()
-                .fill(.regularMaterial.opacity(0.88))
-
-            Group {
-                Circle()
-                    .fill(Color(nsColor: .systemBlue).opacity(0.12))
-                    .frame(width: 260, height: 260)
-                    .offset(x: animate ? 90 : -80, y: animate ? -130 : 110)
-
-                Circle()
-                    .fill(Color(nsColor: .systemIndigo).opacity(0.1))
-                    .frame(width: 320, height: 320)
-                    .offset(x: animate ? -110 : 120, y: animate ? 110 : -100)
-
-                Circle()
-                    .fill(Color(nsColor: .systemTeal).opacity(0.08))
-                    .frame(width: 200, height: 200)
-                    .offset(x: animate ? 45 : -40, y: animate ? 35 : -40)
-            }
-            .blur(radius: 72)
-            .animation(.easeInOut(duration: 14).repeatForever(autoreverses: true), value: animate)
-
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            .white.opacity(0.08),
-                            .clear,
-                            .black.opacity(0.1),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(.white.opacity(0.12), lineWidth: 1)
-                .padding(1)
-        )
+        .padding(18)
+        .opacity(statsVisible ? 1 : 0)
+        .offset(y: statsVisible ? 0 : 6)
+        .animation(.smooth(duration: 0.28), value: service.userStats)
+        .animation(.smooth(duration: 0.22), value: service.isLoading)
+        .animation(.easeOut(duration: 0.3), value: statsVisible)
     }
 
     private var refreshButton: some View {
@@ -194,21 +141,19 @@ struct ContentView: View {
                 Button {
                     Task { await service.fetchStats(username: username) }
                 } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 14, weight: .bold))
-                        .symbolEffect(.bounce, value: service.isLoading)
+                    Label("Refresh stats", systemImage: "arrow.clockwise")
+                        .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.glassProminent)
+                .symbolEffect(.rotate.byLayer, value: service.isLoading)
+                .help("Refresh stats")
             } else {
                 Button {
                     Task { await service.fetchStats(username: username) }
                 } label: {
-                    Image(systemName: "arrow.clockwise.circle.fill")
-                        .font(.title3)
-                        .symbolEffect(.bounce, value: service.isLoading)
+                    Image(systemName: "arrow.clockwise")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.primary.opacity(0.8))
+                .buttonStyle(.bordered)
             }
         }
     }
@@ -220,18 +165,11 @@ struct ContentView: View {
                     NSApplication.shared.terminate(nil)
                 }
                 .buttonStyle(.glass)
-                .font(.system(.caption, design: .rounded).bold())
             } else {
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
-                .buttonStyle(.plain)
-                .font(.system(.caption, design: .rounded).bold())
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(.white.opacity(0.05))
-                .clipShape(Capsule())
+                .buttonStyle(.bordered)
             }
         }
     }
@@ -262,7 +200,7 @@ private struct StatsMenuCard: View {
     @Binding var hoveredMetricID: String?
 
     private var totalMetric: LeetMetric {
-        LeetMetric(id: "all", title: "All", solved: allSolved, total: allTotal, tint: Color(red: 0.20, green: 0.78, blue: 0.86))
+        LeetMetric(id: "all", title: "All", solved: allSolved, total: allTotal, tint: .accentColor)
     }
 
     private var selectedMetric: LeetMetric {
@@ -277,27 +215,22 @@ private struct StatsMenuCard: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(providerName)
                     .font(.headline)
-                    .fontWeight(.semibold)
                 Spacer()
                 Text(accountLabel)
-                    .font(.footnote)
+                    .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
             }
 
             Text(subtitle)
-                .font(.footnote)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
-
-            Divider()
 
             LeetDifficultyGaugeView(
                 metric: selectedMetric,
-                allSolved: allSolved,
-                allTotal: allTotal,
                 currentStreak: currentStreak,
                 longestStreak: longestStreak
             )
-            .frame(height: 220)
+            .frame(height: 170)
 
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(metrics) { metric in
@@ -305,7 +238,7 @@ private struct StatsMenuCard: View {
                         metric: metric,
                         isActive: metric.id == hoveredMetricID,
                         onHoverChange: { hovering in
-                            withAnimation(.interactiveSpring(response: 0.45, dampingFraction: 0.86, blendDuration: 0.12)) {
+                            withAnimation(.easeInOut(duration: 0.18)) {
                                 hoveredMetricID = hovering ? metric.id : nil
                             }
                         }
@@ -313,9 +246,7 @@ private struct StatsMenuCard: View {
                 }
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .panelSurface(cornerRadius: 18)
+        .padding(16)
     }
 }
 
@@ -325,29 +256,31 @@ private struct LeetMetricRow: View {
     let onHoverChange: (Bool) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(metric.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(metric.tint)
+                    .font(.subheadline.weight(.medium))
                 Spacer()
                 Text("\(metric.solved)/\(metric.total)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
-                Text("\(Int(metric.percentage * 100))%")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 36, alignment: .trailing)
             }
 
-            CompactProgressBar(progress: metric.percentage, tint: metric.tint)
+            ProgressView(value: metric.percentage)
+                .tint(metric.tint)
+                .controlSize(.small)
+                .scaleEffect(x: 1, y: 0.72, anchor: .center)
+                .animation(.smooth(duration: 0.2), value: metric.percentage)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(isActive ? .white.opacity(0.07) : .clear)
+                .fill(isActive ? Color.primary.opacity(0.05) : Color.primary.opacity(0.02))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(isActive ? Color.primary.opacity(0.18) : Color.primary.opacity(0.1), lineWidth: 1)
         )
         .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 #if os(macOS)
@@ -360,126 +293,58 @@ private struct LeetMetricRow: View {
 
 private struct LeetDifficultyGaugeView: View {
     let metric: LeetMetric
-    let allSolved: Int
-    let allTotal: Int
     let currentStreak: Int
     let longestStreak: Int
 
-    private let startAngle = Angle.degrees(142)
-    private let sweepAngle = 258.0
-
     var body: some View {
-        GeometryReader { proxy in
-            let side = min(proxy.size.width, proxy.size.height)
-            let lineWidth: CGFloat = 10
-            let radius = side * 0.5 - lineWidth
-            let center = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
-            let endAngle = Angle.degrees(startAngle.degrees + (sweepAngle * metric.percentage))
-
-            ZStack {
-                GaugeArcShape(startAngle: startAngle, endAngle: .degrees(startAngle.degrees + sweepAngle))
-                    .stroke(.white.opacity(0.16), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-
-                GaugeArcShape(startAngle: startAngle, endAngle: endAngle)
-                    .stroke(metric.tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                    .shadow(color: metric.tint.opacity(0.25), radius: 5, x: 0, y: 1)
-                    .animation(.interactiveSpring(response: 0.48, dampingFraction: 0.84, blendDuration: 0.2), value: metric.percentage)
-                    .animation(.easeInOut(duration: 0.22), value: metric.id)
-
-                Circle()
-                    .fill(.white.opacity(0.35))
-                    .frame(width: 8, height: 8)
-                    .position(point(center: center, radius: radius, angle: startAngle))
-
-                Circle()
-                    .fill(metric.tint)
-                    .frame(width: 10, height: 10)
-                    .shadow(color: metric.tint.opacity(0.5), radius: 4, x: 0, y: 0)
-                    .position(point(center: center, radius: radius, angle: endAngle))
-                    .animation(.interactiveSpring(response: 0.48, dampingFraction: 0.84, blendDuration: 0.2), value: metric.percentage)
-
-                VStack(spacing: 3) {
-                    Text(metric.title)
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.96))
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text("\(metric.solved)")
-                            .font(.system(size: 56, weight: .bold, design: .rounded))
-                            .contentTransition(.numericText())
-                        Text("/\(metric.total)")
-                            .font(.system(size: 20, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                    Text("Solved")
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-                .animation(.interactiveSpring(response: 0.45, dampingFraction: 0.86), value: metric.id)
+        VStack(spacing: 10) {
+            Gauge(value: metric.percentage) {
+                Text(metric.title)
+            } currentValueLabel: {
+                Text("\(metric.solved)")
+                    .font(.title.bold())
+                    .monospacedDigit()
+                    .frame(minWidth: 76, alignment: .center)
+                    .contentTransition(.numericText())
             }
+            .gaugeStyle(.accessoryCircularCapacity)
+            .tint(metric.tint)
+            .scaleEffect(1.4)
+            .padding(.bottom, 8)
+            .animation(.spring(response: 0.4, dampingFraction: 0.82), value: metric.id)
+            .animation(.spring(response: 0.4, dampingFraction: 0.82), value: metric.solved)
 
-            VStack {
-                Spacer()
-                HStack(spacing: 20) {
-                    Label("\(currentStreak)d current", systemImage: "flame.fill")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.orange.opacity(0.95))
-                    Label("\(longestStreak)d best", systemImage: "trophy.fill")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.yellow.opacity(0.95))
-                }
-                .padding(.bottom, 4)
+            (
+                Text("\(metric.solved)")
+                    .font(.title.weight(.bold))
+                    .monospacedDigit()
+                +
+                Text(" / \(metric.total)")
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            )
+            .contentTransition(.numericText())
+
+            HStack(spacing: 12) {
+                Label("\(currentStreak)d current", systemImage: "flame.fill")
+                    .foregroundStyle(.orange)
+                Label("\(longestStreak)d best", systemImage: "trophy.fill")
+                    .foregroundStyle(.yellow)
             }
+            .font(.caption)
+
+            Label(
+                metric.id == "all" ? "Overall" : metric.title,
+                systemImage: metric.id == "all" ? "square.grid.2x2" : "scope"
+            )
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.top, 2)
+            .contentTransition(.opacity)
+            .animation(.easeInOut(duration: 0.16), value: metric.id)
         }
-    }
-
-    private func point(center: CGPoint, radius: CGFloat, angle: Angle) -> CGPoint {
-        let radians = CGFloat(angle.radians)
-        return CGPoint(
-            x: center.x + CoreGraphics.cos(radians) * radius,
-            y: center.y + CoreGraphics.sin(radians) * radius
-        )
-    }
-}
-
-private struct GaugeArcShape: Shape {
-    let startAngle: Angle
-    let endAngle: Angle
-
-    func path(in rect: CGRect) -> Path {
-        let inset: CGFloat = 10
-        let arcRect = rect.insetBy(dx: inset, dy: inset)
-        let center = CGPoint(x: arcRect.midX, y: arcRect.midY)
-        let radius = min(arcRect.width, arcRect.height) / 2
-
-        var path = Path()
-        path.addArc(
-            center: center,
-            radius: radius,
-            startAngle: startAngle,
-            endAngle: endAngle,
-            clockwise: false
-        )
-        return path
-    }
-}
-
-private struct CompactProgressBar: View {
-    let progress: Double
-    let tint: Color
-
-    var body: some View {
-        GeometryReader { proxy in
-            let width = proxy.size.width * max(0, min(progress, 1))
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(.secondary.opacity(0.22))
-                Capsule()
-                    .fill(tint)
-                    .frame(width: width)
-                    .animation(.easeInOut(duration: 0.22), value: progress)
-            }
-        }
-        .frame(height: 7)
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -494,12 +359,7 @@ private extension View {
             }
         } else {
             self
-                .background(.regularMaterial.opacity(0.78))
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(.white.opacity(0.14), lineWidth: 1)
-                )
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         }
     }
 }
