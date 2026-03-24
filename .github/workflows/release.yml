@@ -31,11 +31,14 @@ jobs:
           APP_NAME="LeetBar"
           BUNDLE_ID="com.leetbar.app"
           VERSION="${GITHUB_REF_NAME:-dev}"
+          VERSION_STRIPPED="${VERSION#v}"
           DIST_DIR="dist"
           APP_DIR="${DIST_DIR}/${APP_NAME}.app"
-          ZIP_PATH="${DIST_DIR}/${APP_NAME}-macOS.zip"
+          ZIP_PATH="${DIST_DIR}/${APP_NAME}-${VERSION_STRIPPED}.zip"
+          DSYM_ZIP_PATH="${DIST_DIR}/${APP_NAME}-${VERSION_STRIPPED}.dSYM.zip"
           BIN_DIR="$(swift build -c release --show-bin-path)"
           BIN_PATH="${BIN_DIR}/${APP_NAME}"
+          DSYM_PATH="${BIN_PATH}.dSYM"
 
           rm -rf "${DIST_DIR}"
           mkdir -p "${APP_DIR}/Contents/MacOS"
@@ -74,14 +77,20 @@ jobs:
 
           codesign --force --deep --sign - "${APP_DIR}"
           /usr/bin/ditto -c -k --sequesterRsrc --keepParent "${APP_DIR}" "${ZIP_PATH}"
+          if [[ -d "${DSYM_PATH}" ]]; then
+            /usr/bin/ditto -c -k --sequesterRsrc --keepParent "${DSYM_PATH}" "${DSYM_ZIP_PATH}"
+          fi
           shasum -a 256 "${ZIP_PATH}" > "${DIST_DIR}/SHA256SUMS.txt"
+          if [[ -f "${DSYM_ZIP_PATH}" ]]; then
+            shasum -a 256 "${DSYM_ZIP_PATH}" >> "${DIST_DIR}/SHA256SUMS.txt"
+          fi
 
       - name: Upload packaged app artifact
         uses: actions/upload-artifact@v4
         with:
           name: leetbar-macos
           path: |
-            dist/LeetBar-macOS.zip
+            dist/LeetBar-*.zip
             dist/SHA256SUMS.txt
 
   release:
@@ -101,6 +110,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          append_body: true
+          body: |
+            ## Install
+            - Download the asset named `LeetBar-<version>.zip` from **Assets**.
+            - Do **not** use GitHub's auto-generated `Source code (zip)` file.
+            - Unzip and open `LeetBar.app` to start the menu bar app.
           files: |
-            dist/LeetBar-macOS.zip
+            dist/LeetBar-*.zip
             dist/SHA256SUMS.txt

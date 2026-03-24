@@ -20,15 +20,8 @@ struct ContentView: View {
     }
 
     var body: some View {
-        Group {
-            if #available(macOS 26, iOS 26, *) {
-                GlassEffectContainer(spacing: 16) {
-                    mainLayout
-                }
-            } else {
-                mainLayout
-            }
-        }
+        mainLayout
+        .rootVisualContainer(spacing: 16)
         .frame(width: 368, height: 560)
         .onAppear {
             if !username.isEmpty {
@@ -121,18 +114,9 @@ struct ContentView: View {
 
 private struct QuitButton: View {
     var body: some View {
-        Group {
-            if #available(macOS 26, iOS 26, *) {
-                Button("Quit") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .buttonStyle(.glass)
-            } else {
-                Button("Quit") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .buttonStyle(.bordered)
-            }
+        Button("Quit") {
+            NSApplication.shared.terminate(nil)
         }
+        .leetBarButtonStyle()
     }
 }

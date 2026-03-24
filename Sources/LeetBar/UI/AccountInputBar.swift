@@ -20,7 +20,7 @@ struct AccountInputBar: View {
                 ProgressView()
                     .controlSize(.small)
             } else {
-                RefreshButton(isLoading: isLoading, action: onRefresh)
+                RefreshButton(action: onRefresh)
             }
         }
         .padding(.horizontal, 12)
@@ -30,25 +30,14 @@ struct AccountInputBar: View {
 }
 
 private struct RefreshButton: View {
-    let isLoading: Bool
     let action: () -> Void
 
     var body: some View {
-        Group {
-            if #available(macOS 26, iOS 26, *) {
-                Button(action: action) {
-                    Label("Refresh stats", systemImage: "arrow.clockwise")
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.glassProminent)
-                .symbolEffect(.rotate.byLayer, value: isLoading)
-                .help("Refresh stats")
-            } else {
-                Button(action: action) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.bordered)
-            }
+        Button(action: action) {
+            Label("Refresh stats", systemImage: "arrow.clockwise")
+                .labelStyle(.iconOnly)
         }
+        .leetBarButtonStyle(prominent: true)
+        .help("Refresh stats")
     }
 }

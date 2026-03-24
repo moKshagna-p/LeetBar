@@ -14,7 +14,8 @@ Download the latest app build from GitHub Releases:
 
 https://github.com/moKshagna-p/LeetBar/releases
 
-Unzip `LeetBar-macOS.zip`, move `LeetBar.app` to `/Applications`, and open it.
+From the **Assets** list, download `LeetBar-<version>.zip` (not GitHub's auto-generated `Source code (zip)`).
+Unzip it, then open `LeetBar.app` directly from Downloads or move it to `/Applications`.
 
 ## Build From Source
 
@@ -30,7 +31,7 @@ If you prefer Xcode, open the package and run the `LeetBar` target directly.
 Releases are handled entirely by GitHub Actions in [`.github/workflows/release.yml`](/Users/mokshagna/Desktop/Projects/LeetBar/.github/workflows/release.yml).
 
 - Pull requests and pushes to `main` verify that the app builds.
-- Pushing a tag like `v1.0.0` builds `LeetBar.app`, archives `LeetBar-macOS.zip`, generates `SHA256SUMS.txt`, and publishes both to GitHub Releases.
+- Pushing a tag like `v1.0.0` builds `LeetBar.app`, archives `LeetBar-1.0.0.zip` (and `LeetBar-1.0.0.dSYM.zip` when available), generates `SHA256SUMS.txt`, and publishes them to GitHub Releases.
 
 ## Development Notes
 
