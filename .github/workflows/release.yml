@@ -82,10 +82,17 @@ jobs:
           codesign --force --deep --sign - "${APP_DIR}"
           /usr/bin/ditto -c -k --sequesterRsrc --keepParent "${APP_DIR}" "${ZIP_PATH}"
 
+      - name: Verify packaged zip exists
+        run: |
+          set -euo pipefail
+          ls -lah dist
+          test -n "$(ls -1 dist/LeetBar-*.zip 2>/dev/null | head -n 1)"
+
       - name: Upload packaged app artifact
         uses: actions/upload-artifact@v4
         with:
           name: leetbar-macos
+          if-no-files-found: error
           path: |
             dist/LeetBar-*.zip
 
@@ -101,6 +108,12 @@ jobs:
         with:
           name: leetbar-macos
           path: dist
+
+      - name: Verify release asset payload
+        run: |
+          set -euo pipefail
+          ls -lah dist
+          test -n "$(ls -1 dist/LeetBar-*.zip 2>/dev/null | head -n 1)"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
