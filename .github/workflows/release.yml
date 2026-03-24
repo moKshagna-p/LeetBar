@@ -1,27 +1,82 @@
-name: Build and Release macOS App
+name: Release
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+  pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-release:
+  build:
     runs-on: macos-14
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Package macOS app
+      - name: Build release binary
         run: |
-          chmod +x scripts/package-macos.sh
-          VERSION="${GITHUB_REF_NAME}" scripts/package-macos.sh
+          set -euo pipefail
+          swift build -c release
 
-      - name: Upload build artifact
+      - name: Package app bundle
+        run: |
+          set -euo pipefail
+
+          APP_NAME="LeetBar"
+          BUNDLE_ID="com.leetbar.app"
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          DIST_DIR="dist"
+          APP_DIR="${DIST_DIR}/${APP_NAME}.app"
+          ZIP_PATH="${DIST_DIR}/${APP_NAME}-macOS.zip"
+          BIN_DIR="$(swift build -c release --show-bin-path)"
+          BIN_PATH="${BIN_DIR}/${APP_NAME}"
+
+          rm -rf "${DIST_DIR}"
+          mkdir -p "${APP_DIR}/Contents/MacOS"
+
+          cp "${BIN_PATH}" "${APP_DIR}/Contents/MacOS/${APP_NAME}"
+          chmod +x "${APP_DIR}/Contents/MacOS/${APP_NAME}"
+
+          cat > "${APP_DIR}/Contents/Info.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>${APP_NAME}</string>
+            <key>CFBundleDisplayName</key>
+            <string>${APP_NAME}</string>
+            <key>CFBundleIdentifier</key>
+            <string>${BUNDLE_ID}</string>
+            <key>CFBundleVersion</key>
+            <string>${VERSION}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${VERSION}</string>
+            <key>CFBundleExecutable</key>
+            <string>${APP_NAME}</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>14.0</string>
+            <key>LSUIElement</key>
+            <true/>
+            <key>NSPrincipalClass</key>
+            <string>NSApplication</string>
+          </dict>
+          </plist>
+          EOF
+
+          codesign --force --deep --sign - "${APP_DIR}"
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent "${APP_DIR}" "${ZIP_PATH}"
+          shasum -a 256 "${ZIP_PATH}" > "${DIST_DIR}/SHA256SUMS.txt"
+
+      - name: Upload packaged app artifact
         uses: actions/upload-artifact@v4
         with:
           name: leetbar-macos
@@ -29,10 +84,23 @@ jobs:
             dist/LeetBar-macOS.zip
             dist/SHA256SUMS.txt
 
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - name: Download packaged app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: leetbar-macos
+          path: dist
+
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          generate_release_notes: true
           files: |
             dist/LeetBar-macOS.zip
             dist/SHA256SUMS.txt

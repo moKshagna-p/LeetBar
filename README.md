@@ -1,48 +1,39 @@
 # LeetBar
 
-LeetBar is a macOS menu bar app that shows LeetCode solved counts and streak metrics.
+Tiny macOS menu bar app for LeetCode stats. It shows solved counts, streaks, and a compact dashboard from your menu bar without a Dock app.
 
-## Download
+## Install
 
-- Ready-to-run builds are published in GitHub Releases:
-  https://github.com/moKshagna-p/LeetBar/releases
+### Requirements
 
-## Install (one command)
+- macOS 14+
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/moKshagna-p/LeetBar/main/scripts/install.sh | bash
-```
+### GitHub Releases
 
-This follows the standard macOS menu bar app flow (like CodexBar):
-1. Fetch latest GitHub release.
-2. Download `LeetBar-macOS.zip`.
-3. Install `LeetBar.app` into `/Applications`.
-4. Remove quarantine metadata.
-5. Launch the app.
+Download the latest app build from GitHub Releases:
 
-Notes:
-- Release artifacts are generated automatically when a tag like `v1.2.0` is pushed.
-- The release includes `SHA256SUMS.txt` for integrity verification.
-- To install a specific release tag:
+https://github.com/moKshagna-p/LeetBar/releases
+
+Unzip `LeetBar-macOS.zip`, move `LeetBar.app` to `/Applications`, and open it.
+
+## Build From Source
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/moKshagna-p/LeetBar/main/scripts/install.sh | LEETBAR_VERSION=v1.2.0 bash
-```
-
-## Create a downloadable build locally
-
-```bash
-chmod +x scripts/package-macos.sh
-./scripts/package-macos.sh
-```
-
-Artifacts are written to:
-- `dist/LeetBar-macOS.zip`
-- `dist/SHA256SUMS.txt`
-
-## Development
-
-```bash
-swift build
+swift build -c release
 swift run
 ```
+
+If you prefer Xcode, open the package and run the `LeetBar` target directly.
+
+## Release Flow
+
+Releases are handled entirely by GitHub Actions in [`.github/workflows/release.yml`](/Users/mokshagna/Desktop/Projects/LeetBar/.github/workflows/release.yml).
+
+- Pull requests and pushes to `main` verify that the app builds.
+- Pushing a tag like `v1.0.0` builds `LeetBar.app`, archives `LeetBar-macOS.zip`, generates `SHA256SUMS.txt`, and publishes both to GitHub Releases.
+
+## Development Notes
+
+- The app is built as a Swift Package.
+- The packaged app bundle runs as a menu bar app via `LSUIElement`.
+- No install or release shell scripts are required.
