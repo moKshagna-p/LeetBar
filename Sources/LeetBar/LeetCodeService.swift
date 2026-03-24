@@ -6,6 +6,8 @@ class LeetCodeService: ObservableObject {
     @Published var totalCounts: [QuestionCount] = []
     @Published var currentStreak = 0
     @Published var longestStreak = 0
+    @Published var profileImageURL: URL? = nil
+    @Published var badges: [LeetBadge] = []
     @Published var isLoading = false
     @Published var errorMessage: String? = nil
     
@@ -52,17 +54,22 @@ class LeetCodeService: ObservableObject {
             if let acStats = decoded.data.matchedUser?.submitStats.acSubmissionNum {
                 self.userStats = acStats
                 await self.fetchStreaks(username: username)
+                await self.fetchProfileExtras(username: username)
             } else {
                 errorMessage = "User '\(username)' not found."
                 userStats = []
                 currentStreak = 0
                 longestStreak = 0
+                profileImageURL = nil
+                badges = []
             }
         } catch {
             errorMessage = "Error: \(error.localizedDescription)"
             userStats = []
             currentStreak = 0
             longestStreak = 0
+            profileImageURL = nil
+            badges = []
         }
         
         isLoading = false
@@ -106,6 +113,121 @@ class LeetCodeService: ObservableObject {
             self.currentStreak = 0
             self.longestStreak = 0
         }
+    }
+
+    private func fetchProfileExtras(username: String) async {
+        let url = URL(string: "https://leetcode.com/graphql/")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("https://leetcode.com", forHTTPHeaderField: "Referer")
+
+        let query = """
+        query getProfileExtras($username: String!) {
+          matchedUser(username: $username) {
+            profile {
+              userAvatar
+            }
+            badges {
+              id
+              creationDate
+              displayName
+              icon
+              medal {
+                config {
+                  icon
+                  iconGif
+                  iconWearing
+                }
+              }
+            }
+          }
+        }
+        """
+
+        let reqBody = GraphQLRequest(query: query, variables: ["username": username])
+
+        do {
+            request.httpBody = try JSONEncoder().encode(reqBody)
+            let (data, _) = try await URLSession.shared.data(for: request)
+
+            guard
+                let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let dataNode = root["data"] as? [String: Any],
+                let matchedUser = dataNode["matchedUser"] as? [String: Any]
+            else {
+                self.profileImageURL = nil
+                self.badges = []
+                return
+            }
+
+            if
+                let profile = matchedUser["profile"] as? [String: Any],
+                let avatarRaw = profile["userAvatar"] as? String
+            {
+                self.profileImageURL = normalizeLeetCodeURL(avatarRaw)
+            } else {
+                self.profileImageURL = nil
+            }
+
+            if let badgeNodes = matchedUser["badges"] as? [[String: Any]] {
+                let mapped: [LeetBadge] = badgeNodes.compactMap { badge in
+                    let id = badge["id"] as? String ?? UUID().uuidString
+                    let name = badge["displayName"] as? String ?? "Badge"
+                    let creationDate = badge["creationDate"] as? String ?? ""
+                    let iconRaw = badge["icon"] as? String
+                    let medal = badge["medal"] as? [String: Any]
+                    let config = medal?["config"] as? [String: Any]
+                    let configIconRaw = config?["icon"] as? String
+                    let configGifRaw = config?["iconGif"] as? String
+                    let configWearingRaw = config?["iconWearing"] as? String
+
+                    // Prefer high-res static icon. Fallback to API icon, then GIF/wearing variants.
+                    let primary = normalizeLeetCodeURL(configIconRaw) ?? normalizeLeetCodeURL(iconRaw)
+                    let fallback = normalizeLeetCodeURL(configGifRaw) ?? normalizeLeetCodeURL(configWearingRaw)
+
+                    return LeetBadge(
+                        id: id,
+                        name: name,
+                        iconURL: upgradeBadgeAssetURL(primary),
+                        fallbackIconURL: upgradeBadgeAssetURL(fallback),
+                        creationDate: creationDate
+                    )
+                }
+                self.badges = mapped.sorted(by: { $0.creationDate > $1.creationDate })
+            } else {
+                self.badges = []
+            }
+        } catch {
+            self.profileImageURL = nil
+            self.badges = []
+        }
+    }
+
+    private func normalizeLeetCodeURL(_ raw: String?) -> URL? {
+        guard let raw, !raw.isEmpty else { return nil }
+        if raw.hasPrefix("http://") || raw.hasPrefix("https://") {
+            return URL(string: raw)
+        }
+        if raw.hasPrefix("assets.") || raw.hasPrefix("static.") {
+            return URL(string: "https://\(raw)")
+        }
+        if raw.hasPrefix("//") {
+            return URL(string: "https:\(raw)")
+        }
+        if raw.hasPrefix("/") {
+            return URL(string: "https://leetcode.com\(raw)")
+        }
+        return URL(string: "https://leetcode.com/\(raw)")
+    }
+
+    private func upgradeBadgeAssetURL(_ url: URL?) -> URL? {
+        guard let url else { return nil }
+        let absolute = url.absoluteString
+        if absolute.contains("/sm") {
+            return URL(string: absolute.replacingOccurrences(of: "/sm", with: "/lg"))
+        }
+        return url
     }
 
     private func computeStreaks(from submissionCalendar: String) -> (current: Int, longest: Int)? {

@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct StatsMenuCard: View {
-    let providerName: String
     let summary: DashboardSummary
+    let profileImageURL: URL?
     @Binding var hoveredMetricID: String?
 
     private var selectedMetric: DifficultyMetric {
@@ -11,18 +11,10 @@ struct StatsMenuCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(providerName)
-                    .font(.headline)
+            HStack {
                 Spacer()
-                Text(summary.accountLabel)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(.secondary)
+                ProfileAvatar(url: profileImageURL)
             }
-
-            Text(summary.subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
 
             LeetDifficultyGaugeView(
                 metric: selectedMetric,
@@ -50,6 +42,30 @@ struct StatsMenuCard: View {
     }
 }
 
+private struct ProfileAvatar: View {
+    let url: URL?
+
+    var body: some View {
+        Group {
+            if let url {
+                LeetRemoteImage(urls: [url], contentMode: .fill) {
+                    Image(systemName: "person.crop.circle.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Image(systemName: "person.crop.circle.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 40, height: 40)
+        .clipShape(Circle())
+    }
+}
+
 private struct LeetMetricRow: View {
     let metric: DifficultyMetric
     let isActive: Bool
@@ -74,14 +90,6 @@ private struct LeetMetricRow: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(isActive ? Color.primary.opacity(0.05) : Color.primary.opacity(0.02))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(isActive ? Color.primary.opacity(0.18) : Color.primary.opacity(0.1), lineWidth: 1)
-        )
         .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 #if os(macOS)
         .onHover { hovering in

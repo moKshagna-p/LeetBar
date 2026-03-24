@@ -48,3 +48,11 @@ struct CalendarMatchedUser: Codable {
 struct UserCalendar: Codable {
     let submissionCalendar: String?
 }
+
+struct LeetBadge: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let iconURL: URL?
+    let fallbackIconURL: URL?
+    let creationDate: String
+}

@@ -74,12 +74,12 @@ struct ContentView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     StatsMenuCard(
-                        providerName: "LeetCode",
                         summary: summary,
+                        profileImageURL: service.profileImageURL,
                         hoveredMetricID: $hoveredDifficultyID
                     )
 
-                    InsightsPanel(summary: summary)
+                    InsightsPanel(badges: service.badges)
                 }
                 .padding(.vertical, 2)
             }
