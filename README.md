@@ -26,13 +26,6 @@ swift run
 
 If you prefer Xcode, open the package and run the `LeetBar` target directly.
 
-## Release Flow
-
-Releases are handled entirely by GitHub Actions in [`.github/workflows/release.yml`](/Users/mokshagna/Desktop/Projects/LeetBar/.github/workflows/release.yml).
-
-- Pull requests and pushes to `main` verify that the app builds.
-- Pushing a tag like `v1.0.0` builds `LeetBar.app`, archives `LeetBar-1.0.0.zip`, and publishes it to GitHub Releases.
-
 ## Development Notes
 
 - The app is built as a Swift Package.
